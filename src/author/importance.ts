@@ -43,9 +43,11 @@ const toPosix = (p: string): string => p.split(path.sep).join('/');
 /** Resolve a relative import specifier to a repo-relative file in `fileSet`, if any. */
 function resolveImport(importerRel: string, spec: string, fileSet: Set<string>): string | undefined {
   const dir = path.posix.dirname(toPosix(importerRel));
-  // Strip any source extension the author wrote (`./x.js` may be `x.ts` on disk).
+  // Drop a bundler query/fragment (`./worker?worker`, `./icon.svg?url`, `#frag`),
+  // then strip any source extension the author wrote (`./x.js` may be `x.ts` on disk).
+  const cleaned = spec.replace(/[?#].*$/, '');
   const base = path.posix
-    .normalize(path.posix.join(dir, spec))
+    .normalize(path.posix.join(dir, cleaned))
     .replace(/\.(ts|tsx|mts|cts|js|jsx|mjs|cjs)$/, '');
   for (const ext of RESOLVE_EXTS) {
     if (fileSet.has(base + ext)) return base + ext;

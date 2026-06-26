@@ -47,6 +47,13 @@ describe('Phase 3 — file-importance ranking', () => {
     await write('main.go', 'package main\n');
     expect(await rankImportantFiles(dir)).toEqual([]);
   });
+
+  it('resolves bundler query-suffixed import specifiers', async () => {
+    await write('src/worker.ts', 'export default 1;\n');
+    await write('src/a.ts', "import W from './worker?worker';\n");
+    await write('src/b.ts', "import W from './worker.js?worker';\n");
+    expect(await rankImportantFiles(dir)).toContain('src/worker.ts');
+  });
 });
 
 describe('decision #3 — LLM-drafted skills/agents', () => {
@@ -84,6 +91,24 @@ describe('decision #3 — LLM-drafted skills/agents', () => {
     expect(
       await fs.access(path.join(harnessDir, 'skills', 'dup')).then(() => true, () => false),
     ).toBe(false); // rolled back
+  });
+
+  it('REVERTS a drafted skill that references a non-existent script', async () => {
+    await scaffold();
+    const harnessDir = path.join(dir, '.harness');
+    // A skill body naming a script the repo does not define → staleness must catch it
+    // (skills/agents are now scanned, not just AGENTS.md).
+    const proposer =
+      `mkdir -p .harness/skills/migrate && ` +
+      `printf -- '---\\nname: migrate\\ndescription: Migrations.\\n---\\n\\nRun npm run migrate:up.\\n' ` +
+      `> .harness/skills/migrate/SKILL.md`;
+
+    const res = await enrichWithLlm(proposer, dir, harnessDir);
+    expect(res.reverted).toBe(true);
+    expect(res.note).toMatch(/hallucinated command/);
+    expect(
+      await fs.access(path.join(harnessDir, 'skills', 'migrate')).then(() => true, () => false),
+    ).toBe(false);
   });
 });
 

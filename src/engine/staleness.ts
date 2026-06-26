@@ -73,19 +73,24 @@ export async function detectStaleScripts(spec: HarnessSpec): Promise<StaleRef[]>
 
   const sources: Array<{ source: string; text: string }> = [];
   for (const doc of spec.instructions) sources.push({ source: doc.path, text: doc.body });
-  // Commands and enforce rules are root-scoped surfaces.
+  // Commands, enforce rules, skills and agents are all root-scoped instruction
+  // surfaces — a skill body (e.g. an authored "run migrations" workflow) can name an
+  // npm script just like AGENTS.md, so it faces the same staleness check.
   for (const cmd of spec.commands) sources.push({ source: `commands/${cmd.name}.md`, text: cmd.body });
   for (const rule of spec.enforce) {
     if (rule.run) sources.push({ source: `enforce/${rule.id}`, text: rule.run });
   }
+  for (const skill of spec.skills) sources.push({ source: `skills/${skill.name}`, text: skill.body });
+  for (const agent of spec.agents) sources.push({ source: `agents/${agent.name}`, text: agent.body });
 
   const stale: StaleRef[] = [];
   const seen = new Set<string>();
+  const ROOT_SCOPED = /^(commands|enforce|skills|agents)\//;
   for (const { source, text } of sources) {
     const refs = collectScriptRefs(text);
     if (!refs.length) continue;
-    // commands/enforce have no real directory — resolve against the root.
-    const lookupKey = source.startsWith('commands/') || source.startsWith('enforce/') ? 'AGENTS.md' : source;
+    // These surfaces have no real directory — resolve against the root.
+    const lookupKey = ROOT_SCOPED.test(source) ? 'AGENTS.md' : source;
     const defined = await definedFor(lookupKey);
     if (!defined) continue; // can't verify without a package.json on the path
     for (const ref of refs) {

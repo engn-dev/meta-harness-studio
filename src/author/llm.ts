@@ -17,7 +17,8 @@ import path from 'node:path';
 import os from 'node:os';
 import { spawn } from 'node:child_process';
 import { promises as nodeFs } from 'node:fs';
-import { copyDir, rmrf, readTextOr } from '../util/fs.js';
+import { copyDir, rmrf } from '../util/fs.js';
+import { hashDir } from '../util/hash.js';
 import { loadFromHarnessDir } from '../config/load.js';
 import { detectStaleScripts } from '../engine/staleness.js';
 import { detectLiteralSecrets } from '../config/secrets.js';
@@ -104,8 +105,7 @@ export async function enrichWithLlm(
   root: string,
   harnessDir: string,
 ): Promise<LlmEnrichResult> {
-  const agentsPath = path.join(harnessDir, 'AGENTS.md');
-  const before = await readTextOr(agentsPath);
+  const beforeHash = await hashDir(harnessDir);
 
   // Snapshot the WHOLE harness — the agent is told to touch only AGENTS.md, but an
   // untrusted run could edit anything, and we want a clean revert regardless.
@@ -140,11 +140,13 @@ export async function enrichWithLlm(
       };
     }
 
-    const after = await readTextOr(agentsPath);
-    if (after === before) {
+    // Detect change across the WHOLE harness, so adding a skill/agent (not just
+    // editing AGENTS.md) is reported accurately.
+    const afterHash = await hashDir(harnessDir);
+    if (afterHash === beforeHash) {
       return { applied: false, reverted: false, note: `LLM pass made no change (agent exited ${run.code}).` };
     }
-    return { applied: true, reverted: false, note: `LLM pass applied — AGENTS.md enriched (agent exited ${run.code}).` };
+    return { applied: true, reverted: false, note: `LLM pass applied — harness enriched (agent exited ${run.code}).` };
   } finally {
     await rmrf(snapshot);
   }

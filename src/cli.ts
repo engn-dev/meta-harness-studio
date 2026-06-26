@@ -53,7 +53,7 @@ program
     '-p, --proposer <cmd>',
     'opt-in LLM authoring pass: a shell command (e.g. "claude -p"); validate-or-revert',
   )
-  .option('--optimize', 'chain `harness optimize` after authoring', false)
+  .option('--optimize', 'chain `harness optimize` (simulated proposer) after authoring', false)
   .action((opts: { force: boolean; proposer?: string; optimize: boolean }) =>
     run(() => runAuthor(ctx(), { force: opts.force, proposer: opts.proposer, optimize: opts.optimize })),
   );
