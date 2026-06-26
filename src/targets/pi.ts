@@ -10,7 +10,7 @@
 import type { Adapter, FileOutput, ProjectionResult } from './types.js';
 import type { HarnessSpec, PermissionSpec } from '../config/canonical.js';
 import { rootAgentsOutput, nestedAgentsOutputs, skillOutputs, markdownDefOutputs } from './shared.js';
-import { toPiMcpExtension, projectScoped, jsonFile } from '../mcp/transpile.js';
+import { toPiMcpExtension, projectScoped } from '../mcp/transpile.js';
 
 const TRUST: Record<PermissionSpec['defaultMode'], string> = {
   allow: 'always',
@@ -66,19 +66,14 @@ function project(spec: HarnessSpec): ProjectionResult {
     });
   }
 
-  // Permissions -> coarse project trust.
+  // Permissions -> Pi's only knob is `defaultProjectTrust`, but Pi reads it ONLY
+  // from the GLOBAL ~/.pi/agent/settings.json — a project-scoped .pi/settings.json
+  // is silently ignored. Emitting one would be an inert no-op, so we degrade to a
+  // warning (honest degradation) instead of writing a file that does nothing.
   if (spec.permissions.defaultMode !== 'ask') {
-    files.push({
-      path: '.pi/settings.json',
-      contents: jsonFile({ defaultProjectTrust: TRUST[spec.permissions.defaultMode] }),
-      capability: 'permissions',
-      scope: 'project',
-    });
-    if (spec.permissions.allow.length || spec.permissions.deny.length || spec.permissions.ask.length) {
-      warnings.push(
-        `Pi permissions are a coarse project-trust gate, not per-tool rules; tool patterns mapped only to defaultProjectTrust.`,
-      );
-    }
+    warnings.push(
+      `Pi project trust is global-only: set defaultProjectTrust = "${TRUST[spec.permissions.defaultMode]}" in ~/.pi/agent/settings.json. A project-scoped .pi/settings.json is ignored by Pi, so none is emitted.`,
+    );
   }
 
   return { files, warnings };
