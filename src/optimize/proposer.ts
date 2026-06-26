@@ -86,7 +86,10 @@ async function shellProposer(
     }, PROPOSER_TIMEOUT_MS);
     child.stdout?.on('data', (d) => (output += d.toString()));
     child.stderr?.on('data', (d) => (output += d.toString()));
-    // The prompt is delivered once, over stdin (how `claude -p` reads it).
+    // The prompt is delivered once, over stdin (how `claude -p` reads it). A
+    // proposer that ignores stdin and exits first makes this write emit EPIPE on
+    // the stream — handle it so an unread prompt never crashes the loop.
+    child.stdin?.on('error', () => {});
     child.stdin?.write(STEERING_PROMPT);
     child.stdin?.end();
     child.on('error', (e) => {
