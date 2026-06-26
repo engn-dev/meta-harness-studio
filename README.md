@@ -151,7 +151,7 @@ expect_exit = 0
 | Command | What it does |
 |---------|--------------|
 | `harness init [--yes]` | Scaffold `.harness/`; import an existing `AGENTS.md`/`CLAUDE.md`/`.cursorrules` |
-| `harness author [--force]` | Scan the repo and auto-author a working `.harness/` (deterministic; `init --from-repo` is an alias) |
+| `harness author [--force] [--proposer <cmd>] [--optimize]` | Scan the repo and auto-author a working `.harness/` (deterministic; `init --from-repo` is an alias). `--proposer "claude -p"` adds an opt-in LLM pass (validate-or-revert); `--optimize` chains the loop |
 | `harness apply [--dry-run]` | Validate → project the canonical spec onto every enabled tool |
 | `harness verify` | Audit drift, stale script references, and enforcement coverage (CI-friendly exit code) |
 | `harness optimize [--proposer <cmd>] [--iterations <n>] [--apply]` | Close the loop |

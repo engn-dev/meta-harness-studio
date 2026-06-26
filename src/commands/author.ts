@@ -22,6 +22,7 @@ import { scanRepo } from '../author/scan.js';
 import { renderHarnessFiles } from '../author/render.js';
 import { generateEvalTasks } from '../author/evalgen.js';
 import { enrichWithLlm } from '../author/llm.js';
+import { runOptimize } from './optimize.js';
 import { log, pc } from '../util/log.js';
 
 export interface AuthorOptions {
@@ -29,6 +30,8 @@ export interface AuthorOptions {
   force?: boolean;
   /** Opt-in LLM authoring pass: a shell command (e.g. `claude -p`). Absent = deterministic only. */
   proposer?: string;
+  /** Chain `harness optimize` after authoring (simulated proposer by default). */
+  optimize?: boolean;
 }
 
 export async function runAuthor(root: string, opts: AuthorOptions = {}): Promise<number> {
@@ -81,14 +84,30 @@ export async function runAuthor(root: string, opts: AuthorOptions = {}): Promise
     return 1;
   }
 
-  // 5b. Opt-in LLM authoring pass (Phase 1). It runs against the repo + the valid
-  // draft above, then validate-or-reverts through the same gates — so a bad run can
-  // never leave the harness worse than the deterministic draft.
+  // 5b. Opt-in LLM authoring pass (Phase 1 + decision #3). It runs against the repo
+  // + the valid draft above, may enrich AGENTS.md and add grounded skills/agents,
+  // then validate-or-reverts through the same gates — so a bad run can never leave
+  // the harness worse than the deterministic draft.
+  const newDrafts: string[] = [];
   if (opts.proposer) {
+    const baseSkills = new Set(spec.skills.map((s) => `skill:${s.name}`));
+    const baseAgents = new Set(spec.agents.map((a) => `agent:${a.name}`));
     log.dim(`LLM authoring pass: \`${opts.proposer}\` …`);
     const enrich = await enrichWithLlm(opts.proposer, root, harnessDir);
-    if (enrich.reverted) log.warn(enrich.note);
-    else log.dim(enrich.note);
+    if (enrich.reverted) {
+      log.warn(enrich.note);
+    } else {
+      log.dim(enrich.note);
+      // Surface any skills/agents the agent drafted so the maintainer reviews them
+      // (they are projected by `apply`, so they are drafts to keep or delete).
+      const { spec: after } = await loadFromHarnessDir(harnessDir, root);
+      for (const s of after?.skills ?? []) {
+        if (!baseSkills.has(`skill:${s.name}`)) newDrafts.push(`skill/${s.name}`);
+      }
+      for (const a of after?.agents ?? []) {
+        if (!baseAgents.has(`agent:${a.name}`)) newDrafts.push(`agent/${a.name}`);
+      }
+    }
   }
 
   // 6. Mine the guard eval set (validate-then-keep against the final AGENTS.md).
@@ -109,6 +128,14 @@ export async function runAuthor(root: string, opts: AuthorOptions = {}): Promise
     log.dim(`Eval guards dropped (${evalReport.dropped.length}): ` + evalReport.dropped.map((d) => d.name).join(', '));
   }
 
+  // Drafted skills/agents from the LLM pass — flagged for review, never silent.
+  if (newDrafts.length) {
+    log.info(
+      `\n${pc.bold('Drafted for review')} (LLM-authored — keep or delete before \`apply\`):\n` +
+        newDrafts.map((d) => `  • ${d}`).join('\n'),
+    );
+  }
+
   // MCP checklist — inferred servers ship commented; tell the maintainer what to set.
   if (digest.mcpServers.length) {
     const lines = digest.mcpServers.map((s) => {
@@ -119,6 +146,13 @@ export async function runAuthor(root: string, opts: AuthorOptions = {}): Promise
       `\n${pc.bold('Suggested MCP servers')} (commented in mcp.toml — uncomment to enable):\n` +
         lines.join('\n'),
     );
+  }
+
+  // 8. Optionally close the loop straight away (reuses the optimizer unchanged).
+  if (opts.optimize) {
+    log.info('');
+    log.dim('Chaining `harness optimize` …');
+    return runOptimize(root, {});
   }
 
   log.dim('Next: harness apply • harness verify • harness optimize');

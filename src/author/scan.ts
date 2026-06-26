@@ -19,6 +19,7 @@ import type {
   RepoSignals,
 } from './types.js';
 import { inferMcpServers } from './mcp-map.js';
+import { rankImportantFiles } from './importance.js';
 import { pathExists, readTextOr, listDir } from '../util/fs.js';
 
 /** Directories never worth crawling for the census, regardless of .gitignore. */
@@ -248,8 +249,15 @@ export async function scanRepo(root: string): Promise<RepoDigest> {
     makefile: await readTextOr(path.join(root, 'Makefile')),
   });
 
-  // --- keyPaths ---
-  const keyPaths = await collectKeyPaths(root, pkg);
+  // --- keyPaths: declared entrypoints/configs first, then the most-imported
+  // modules (centrality the manifest can't name), deduped and capped at 8. ---
+  const declaredPaths = await collectKeyPaths(root, pkg);
+  const central = await rankImportantFiles(root);
+  const keyPaths: string[] = [];
+  for (const p of [...declaredPaths, ...central]) {
+    if (!keyPaths.includes(p)) keyPaths.push(p);
+    if (keyPaths.length >= 8) break;
+  }
 
   // --- workspaces ---
   const workspaces = await collectWorkspaces(root, pkg);

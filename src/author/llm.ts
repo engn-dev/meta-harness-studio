@@ -34,24 +34,30 @@ export interface LlmEnrichResult {
 /** A hung agent would block the command forever, so cap the call (mirrors optimize). */
 const TIMEOUT_MS = 10 * 60 * 1000;
 
-const STEERING_PROMPT = `You are authoring the canonical instructions file for THIS repository: .harness/AGENTS.md
+const STEERING_PROMPT = `You are authoring the canonical agent harness for THIS repository under .harness/
 (the single source of truth an AI coding agent reads to work here).
 
-A deterministic draft already exists at .harness/AGENTS.md. Improve it in place:
-- Read the repository and ADD only genuinely load-bearing facts an agent would
-  otherwise get wrong: real architecture, key modules and how they fit, non-obvious
-  gotchas, project-specific conventions.
-- Be SUBTRACTION-FIRST and concise (keep it well under ~200 lines). Cut anything an
-  agent could trivially infer from the code. A short, true file beats a long one.
+A deterministic draft already exists. Improve it on disk:
+1. .harness/AGENTS.md — ADD only genuinely load-bearing facts an agent would
+   otherwise get wrong: real architecture, key modules and how they fit, non-obvious
+   gotchas, project-specific conventions. Be SUBTRACTION-FIRST and concise (well
+   under ~200 lines) — a short, true file beats a long one.
+2. OPTIONALLY add grounded skills/subagents this repo genuinely warrants, each
+   capturing a real, reusable workflow (e.g. a migration runner, a release
+   checklist) — never filler:
+   - a skill at .harness/skills/<new-name>/SKILL.md, frontmatter: name, description;
+   - a subagent at .harness/agents/<new-name>.md, frontmatter: name, description.
+   Use names not already present under skills/ or agents/. Valid YAML frontmatter
+   is required, or the whole run is discarded.
 
-HARD CONSTRAINTS (violating any will cause your whole run to be discarded):
+HARD CONSTRAINTS (violating any discards your entire run — it reverts to the draft):
 - Only reference build/test/lint commands that ACTUALLY exist (check package.json
-  scripts / Makefile). Never invent a command.
-- Never write a secret anywhere. Leave .harness/mcp.toml and other files untouched.
-- Edit ONLY .harness/AGENTS.md. Keep its existing "## Commands" entries and the
-  "Never commit secrets" line verbatim.
+  scripts / Makefile). Never invent a command, anywhere.
+- Never write a secret. Leave .harness/mcp.toml, permissions.toml and enforce.toml
+  untouched. Keep AGENTS.md's existing "## Commands" entries and the "Never commit
+  secrets" line verbatim.
 
-Edit .harness/AGENTS.md now. Do not print the file to stdout; modify it on disk.`;
+Modify the files on disk now. Do not print them to stdout.`;
 
 interface SpawnOutcome {
   code: number;
