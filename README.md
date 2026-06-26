@@ -126,8 +126,12 @@ snapshot → proposer edits → interface-validate → leakage audit → evaluat
 
 ```bash
 harness optimize                       # simulated, clears history/
-harness optimize --proposer "claude -p" --iterations 5
 harness optimize --apply               # adopt the best variant into .harness/
+
+# Real agentic proposer. Headless coding agents are sandboxed, so grant write +
+# read of the sibling history/ store — otherwise the proposer can only diagnose
+# and no edits persist (it converges to a no-op):
+harness optimize --proposer "claude -p --dangerously-skip-permissions --add-dir ../.." --iterations 5
 ```
 
 Define eval tasks as directories under `eval/search/` and `eval/test/`, each with a `task.toml`:

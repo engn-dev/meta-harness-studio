@@ -173,6 +173,15 @@ export async function runOptimize(root: string, opts: OptimizeOptions = {}): Pro
     if (!prop.changed || seenHashes.has(hash)) {
       await writeDiagnosis(cand, prop.diagnosis);
       log.info(`  ${pc.dim(cand.id)} converged — proposer found no further improvement.`);
+      // A real (shell) proposer that made *zero* edits is often sandboxed, not
+      // done: headless agents like `claude -p` can't write files or read the
+      // sibling history/ store without explicit grants, so the run looks like a
+      // successful no-op when the agent was actually blocked. Surface that.
+      if (proposer !== 'simulated' && !prop.changed) {
+        log.warn(
+          `  ${cand.id}: '${proposer}' made no changes. If it's a sandboxed agent it may lack write/read access — try \`--proposer "claude -p --dangerously-skip-permissions --add-dir ../.."\` (see README).`,
+        );
+      }
       break;
     }
 
