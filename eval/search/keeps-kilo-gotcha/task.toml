@@ -1,0 +1,5 @@
+# Guards the hard-won "do not fix" fact: Kilo subagents live at .kilo/agents/.
+# If the optimizer ever compresses this away, an agent will "helpfully" relocate
+# them to .kilocode/ and break the Kilo adapter. This task forbids that.
+cmd = 'grep -qF ".kilo/agents" "$HARNESS_DIR/AGENTS.md"'
+expect_exit = 0

@@ -1,0 +1,5 @@
+# Guards the paper's decisive design decision (ablation 50.0 vs 34.9): the store
+# keeps RAW traces and never summarizes them. This is the project's north-star
+# invariant — the optimizer must not let it be paraphrased into oblivion.
+cmd = 'grep -qF "never summarize" "$HARNESS_DIR/AGENTS.md"'
+expect_exit = 0

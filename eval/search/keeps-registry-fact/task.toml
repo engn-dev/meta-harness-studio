@@ -1,0 +1,5 @@
+# Guards the architectural fact that adding/removing a target is one edit to
+# src/targets/registry.ts. Drop it and an agent starts threading new targets
+# through the engine by hand.
+cmd = 'grep -qF "src/targets/registry.ts" "$HARNESS_DIR/AGENTS.md"'
+expect_exit = 0

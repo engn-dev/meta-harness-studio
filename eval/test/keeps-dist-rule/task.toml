@@ -1,0 +1,5 @@
+# Held-out (the proposer never sees this): the "never hand-edit dist/" convention
+# must survive. A real generalization check — does the compressed harness still
+# carry rules the optimizer was never explicitly told to protect?
+cmd = 'grep -qF "Never hand-edit" "$HARNESS_DIR/AGENTS.md"'
+expect_exit = 0

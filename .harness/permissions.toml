@@ -1,0 +1,9 @@
+default_mode = "ask"
+
+[[deny]]
+tool = "Read"
+pattern = "./.env*"
+
+[sandbox]
+mode = "workspace-write"
+network = false

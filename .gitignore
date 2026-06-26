@@ -10,3 +10,9 @@ dist/
 # Generated tool config is committed by default for review; flip to ignore here
 # if your harness.toml sets [projection] commit_generated = false.
 # .harness/.generated/
+
+# >>> meta-harness-studio (managed) >>>
+# Optimizer run artifacts and internal scratch are local by default.
+.harness/history/
+.harness/.generated/
+# <<< meta-harness-studio (managed) <<<

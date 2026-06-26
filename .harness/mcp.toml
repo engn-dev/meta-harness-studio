@@ -1,0 +1,9 @@
+# Canonical MCP servers — transpiled to each tool's native format by `harness apply`.
+# Uncomment to add one (secrets stay as ${ENV} references, never literals):
+#
+# [servers.github]
+# transport = "stdio"
+# command = "npx"
+# args = ["-y", "@modelcontextprotocol/server-github"]
+# env = { GITHUB_TOKEN = "${GITHUB_TOKEN}" }
+# scope = "project"
