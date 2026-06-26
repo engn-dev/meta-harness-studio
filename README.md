@@ -19,7 +19,7 @@ Tools like **Ruler** and **rulesync** solve half of this: they're one-way compil
 
 Meta-Harness Studio does both halves:
 
-1. **Project everywhere, correctly** — including the parts sync tools skip: generated **enforcement** (hooks + permission denies), the six genuinely-different **MCP serializations**, and graceful degradation when a tool can't express a feature.
+1. **Project everywhere, correctly** — including the parts sync tools skip: generated **enforcement** (hooks + permission denies), the five genuinely-different **MCP serializations** (six tools — Cline and Kilo share the Roo-lineage shape), and graceful degradation when a tool can't express a feature.
 2. **Close the loop** — ingest execution feedback, let an agentic proposer diagnose from **raw traces** and edit the harness, validate, and report a Pareto frontier. No other cross-tool config tool does this.
 
 ---
@@ -53,7 +53,7 @@ Result
 
 That's the paper's headline outcome — **equal pass-rate at fewer tokens** — reproduced offline.
 
-See [`examples/demo-project/`](examples/demo-project/) for a complete worked example — MCP servers, a subagent, an output style, and an enforce rule. Run `harness -C examples/demo-project apply` to generate native config for all 7 tools (generated files are gitignored, so you produce them yourself).
+See [`examples/demo-project/`](examples/demo-project/) for a complete worked example — MCP servers, a subagent, an output style, and an enforce rule. Run `harness -C examples/demo-project apply` to generate native config for all 6 tools (generated files are gitignored, so you produce them yourself).
 
 ---
 
@@ -66,7 +66,7 @@ See [`examples/demo-project/`](examples/demo-project/) for a complete worked exa
   instructions/**/AGENTS.md  # optional nested per-package (monorepo nearest-wins)
   mcp.toml                # canonical MCP servers (one schema → 6 serializers)
   permissions.toml        # allow / deny / ask + sandbox intent (degrades per tool)
-  enforce.toml            # "must-happen" rules → hooks (Claude/Codex) / advisory elsewhere
+  enforce.toml            # "must-happen" rules → hooks + permission denies (Claude Code) / advisory elsewhere
   skills/<name>/SKILL.md  # Agent-Skills standard
   agents/<name>.md        # subagent specs
   commands/<name>.md      # slash commands / prompt templates
@@ -95,7 +95,7 @@ Run `harness list-targets` for the full capability matrix, and `harness doctor` 
 
 ---
 
-## MCP: one definition, six shapes
+## MCP: one definition, five shapes
 
 MCP is the one capability with no shared format. A single canonical server in `mcp.toml`:
 

@@ -7,7 +7,6 @@ export type Capability =
   | 'hooks'
   | 'mcp'
   | 'permissions'
-  | 'modes'
   | 'outputStyles'
   | 'skills'
   | 'ignore';
@@ -51,7 +50,6 @@ export const CAPABILITIES: Capability[] = [
   'hooks',
   'mcp',
   'permissions',
-  'modes',
   'outputStyles',
   'skills',
   'ignore',

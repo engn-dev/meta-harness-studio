@@ -59,6 +59,17 @@ export function compileClaudeEnforcement(enforce: EnforceRule[]): ClaudeEnforcem
     });
   };
 
+  // A hook matcher keys on the tool only — file globs can't be expressed there.
+  // Permission deny rules DO carry the glob (`Tool(glob)`); everything that
+  // compiles to a hook silently loses `when_files`, so we say so.
+  const warnWhenFilesDropped = (r: EnforceRule, guard: string): void => {
+    if (r.whenFiles.length) {
+      warnings.push(
+        `enforce '${r.id}': when_files scoping isn't expressible in a hook matcher — guard inside ${guard} if it must only apply to ${r.whenFiles.join(', ')}.`,
+      );
+    }
+  };
+
   for (const r of enforce) {
     const event = EVENT_MAP[r.event];
     const tools = toolNames(r.match);
@@ -70,6 +81,7 @@ export function compileClaudeEnforcement(enforce: EnforceRule[]): ClaudeEnforcem
         warnings.push(
           `enforce '${r.id}': action=deny only maps cleanly to a pre-tool gate; emitted a blocking ${event} hook instead.`,
         );
+        warnWhenFilesDropped(r, 'the hook command');
         add(event, matcher, `printf '%s\\n' ${shq(message)} 1>&2; exit 2`);
         continue;
       }
@@ -77,6 +89,7 @@ export function compileClaudeEnforcement(enforce: EnforceRule[]): ClaudeEnforcem
         warnings.push(
           `enforce '${r.id}': deny with match='*' can't be a precise permission rule; emitted a blocking PreToolUse hook.`,
         );
+        warnWhenFilesDropped(r, 'the hook command');
         add('PreToolUse', undefined, `printf '%s\\n' ${shq(message)} 1>&2; exit 2`);
         continue;
       }
@@ -88,15 +101,12 @@ export function compileClaudeEnforcement(enforce: EnforceRule[]): ClaudeEnforcem
         }
       }
     } else if (r.action === 'warn') {
+      warnWhenFilesDropped(r, 'the hook command');
       add(event, matcher, `printf '%s\\n' ${shq(message)} 1>&2`);
     } else {
       // action === 'run'
       add(event, matcher, r.run as string);
-      if (r.whenFiles.length) {
-        warnings.push(
-          `enforce '${r.id}': when_files scoping isn't expressible in a hook matcher — guard inside the command \`${r.run}\` if it must only run for ${r.whenFiles.join(', ')}.`,
-        );
-      }
+      warnWhenFilesDropped(r, `the command \`${r.run}\``);
     }
   }
 

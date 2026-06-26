@@ -95,7 +95,6 @@ export const pi: Adapter = {
     hooks: 'codegen',
     mcp: 'codegen',
     permissions: 'shim',
-    modes: 'native',
     outputStyles: 'none',
     skills: 'native',
     ignore: 'none',

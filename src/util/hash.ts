@@ -10,13 +10,17 @@ export function hashString(s: string): string {
  * Stable content hash of a directory tree (sorted relative paths + file bytes).
  * Used to dedupe identical harness variants so the optimizer never re-evaluates
  * the same config twice.
+ *
+ * `ignore` entries are matched only at the TOP LEVEL (e.g. `history`, `.generated`):
+ * a nested file or directory that happens to share one of those names still
+ * contributes to the hash, so two genuinely different variants never collide.
  */
 export async function hashDir(dir: string, ignore: string[] = []): Promise<string> {
   const h = createHash('sha256');
   const walk = async (cur: string, rel: string): Promise<void> => {
     const names = (await listDir(cur)).sort();
     for (const name of names) {
-      if (ignore.includes(name)) continue;
+      if (rel === '' && ignore.includes(name)) continue;
       const abs = path.join(cur, name);
       const relPath = rel ? `${rel}/${name}` : name;
       const stat = await fs.stat(abs);

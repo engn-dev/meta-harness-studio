@@ -15,3 +15,9 @@
 /.pi/
 /.agents/
 /.harness/.generated/
+
+# >>> meta-harness-studio (managed) >>>
+# Optimizer run artifacts and internal scratch are local by default.
+.harness/history/
+.harness/.generated/
+# <<< meta-harness-studio (managed) <<<

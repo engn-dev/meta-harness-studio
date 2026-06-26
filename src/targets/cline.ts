@@ -45,12 +45,22 @@ function project(spec: HarnessSpec): ProjectionResult {
     });
   }
 
-  // MCP -> globalStorage (cannot write safely); emit as a reference artifact.
+  // MCP -> globalStorage (cannot write safely); emit a reference artifact for the
+  // project-scoped servers. user/local-scoped servers already live in the user's
+  // global store, so they need no project bridge — surface them as a note instead.
   const projectServers = projectScoped(spec.mcp);
-  if (spec.mcp.length) {
+  const nonProject = spec.mcp.filter((s) => s.scope !== 'project');
+  if (nonProject.length) {
+    warnings.push(
+      `${nonProject.length} MCP server(s) are scope=user/local — already global to Cline; manage them directly in globalStorage: ${nonProject
+        .map((s) => s.name)
+        .join(', ')}.`,
+    );
+  }
+  if (projectServers.length) {
     files.push({
       path: '.harness/.generated/cline/cline_mcp_settings.json',
-      contents: jsonFile(toRooStyleMcp(projectServers.length ? projectServers : spec.mcp)),
+      contents: jsonFile(toRooStyleMcp(projectServers)),
       capability: 'mcp',
       scope: 'user',
       note: 'Merge into VS Code globalStorage: <globalStorage>/saoudrizwan.claude-dev/settings/cline_mcp_settings.json',
@@ -71,7 +81,6 @@ export const cline: Adapter = {
     hooks: 'none',
     mcp: 'shim',
     permissions: 'shim',
-    modes: 'native',
     outputStyles: 'none',
     skills: 'none',
     ignore: 'native',

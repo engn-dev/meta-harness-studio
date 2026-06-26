@@ -39,12 +39,19 @@ export function projectScoped(servers: McpServer[]): McpServer[] {
   return servers.filter((s) => s.scope === 'project');
 }
 
+/** Servers a tool should actually run. Formats with no `disabled`/`enabled` field
+ *  (Claude `.mcp.json`, Codex `config.toml`) must omit disabled servers entirely —
+ *  emitting them would silently activate a server the harness marked off. */
+function activeOnly(servers: McpServer[]): McpServer[] {
+  return servers.filter((s) => s.enabled);
+}
+
 // ---------------------------------------------------------------------------
 // Claude Code — .mcp.json
 // ---------------------------------------------------------------------------
 export function toClaudeMcp(servers: McpServer[]): { mcpServers: Record<string, unknown> } {
   const mcpServers: Record<string, unknown> = {};
-  for (const s of servers) {
+  for (const s of activeOnly(servers)) {
     if (s.transport === 'stdio') {
       mcpServers[s.name] = clean({
         command: s.command,
@@ -133,7 +140,7 @@ function tomlInlineTable(obj: Record<string, string>): string {
 
 export function toCodexMcpToml(servers: McpServer[]): string {
   const blocks: string[] = [];
-  for (const s of servers) {
+  for (const s of activeOnly(servers)) {
     const lines = [`[mcp_servers.${tomlKey(s.name)}]`];
     if (s.transport === 'stdio') {
       lines.push(`command = ${tomlString(s.command as string)}`);

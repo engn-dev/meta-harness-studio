@@ -81,7 +81,6 @@ export const opencode: Adapter = {
     hooks: 'none',
     mcp: 'native',
     permissions: 'native',
-    modes: 'native',
     outputStyles: 'none',
     skills: 'none',
     ignore: 'shim',

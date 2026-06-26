@@ -8,6 +8,8 @@ import path from 'node:path';
 import * as p from '@clack/prompts';
 import { ALL_TARGETS, type TargetId } from '../config/canonical.js';
 import { pathExists, writeText, readTextOr } from '../util/fs.js';
+import { loadHarness } from '../config/load.js';
+import { syncGitignore } from '../engine/gitignore.js';
 import { log, pc } from '../util/log.js';
 
 export interface InitOptions {
@@ -23,9 +25,14 @@ const TARGET_LABELS: Record<TargetId, string> = {
   pi: 'Pi',
 };
 
+// TOML basic-string escaping. A project directory name can contain `"` or `\`
+// (e.g. a folder literally named `my "app"`), which would otherwise produce
+// invalid harness.toml. JSON string syntax is a valid TOML basic string here.
+const tomlStr = (s: string): string => JSON.stringify(s);
+
 function harnessToml(name: string, targets: TargetId[]): string {
-  return `name = "${name}"
-targets = [${targets.map((t) => `"${t}"`).join(', ')}]
+  return `name = ${tomlStr(name)}
+targets = [${targets.map((t) => tomlStr(t)).join(', ')}]
 
 [projection]
 mode = "generate"        # "generate" (copy) | "symlink" (byte-identical only)
@@ -39,19 +46,32 @@ max_iterations = 3
 `;
 }
 
-function starterAgents(name: string, imported: string): string {
+interface ProjectScripts {
+  build: boolean;
+  lint: boolean;
+}
+
+function starterAgents(name: string, imported: string, scripts: ProjectScripts): string {
   const importedBlock = imported
     ? `\n## Imported instructions\n\n${imported.trim()}\n`
     : '';
+  // Only scaffold script references the project actually defines, so a fresh
+  // `init` → `verify` is clean (no stale-reference warning out of the box).
+  // `npm test` is always safe to mention — staleness only checks `npm run <x>`.
+  const commands = [
+    scripts.build ? '- Build: `npm run build`' : null,
+    '- Test: `npm test`',
+    scripts.lint ? '- Lint: `npm run lint`' : null,
+  ]
+    .filter(Boolean)
+    .join('\n');
   return `# ${name}
 
 Concise, tool-agnostic instructions for any AI coding agent in this repo. This is
 the single source of truth — \`harness apply\` projects it to every tool.
 
 ## Commands
-- Build: \`npm run build\`
-- Test: \`npm test\`
-- Lint: \`npm run lint\`
+${commands}
 
 ## Conventions
 - Keep changes minimal and match the existing style.
@@ -146,6 +166,16 @@ export async function runInit(root: string, opts: InitOptions = {}): Promise<num
     }
   }
 
+  // Scaffold only against npm scripts the project actually defines.
+  let pkgScripts: Record<string, unknown> = {};
+  try {
+    const pkgRaw = await readTextOr(path.join(root, 'package.json'));
+    if (pkgRaw) pkgScripts = (JSON.parse(pkgRaw).scripts as Record<string, unknown>) ?? {};
+  } catch {
+    /* no/invalid package.json — emit no script references */
+  }
+  const hasScript = (s: string): boolean => Object.prototype.hasOwnProperty.call(pkgScripts, s);
+
   let name = path.basename(root);
   let targets: TargetId[] = [...ALL_TARGETS];
 
@@ -177,18 +207,24 @@ export async function runInit(root: string, opts: InitOptions = {}): Promise<num
 
   // Write the canonical spec.
   await writeIfAbsent(path.join(harnessDir, 'harness.toml'), harnessToml(name, targets));
-  await writeIfAbsent(path.join(harnessDir, 'AGENTS.md'), starterAgents(name, imported));
+  await writeIfAbsent(
+    path.join(harnessDir, 'AGENTS.md'),
+    starterAgents(name, imported, { build: hasScript('build'), lint: hasScript('lint') }),
+  );
   await writeIfAbsent(path.join(harnessDir, 'mcp.toml'), STARTER_MCP);
   await writeIfAbsent(path.join(harnessDir, 'permissions.toml'), STARTER_PERMISSIONS);
   await writeIfAbsent(path.join(harnessDir, 'enforce.toml'), STARTER_ENFORCE);
   await writeIfAbsent(path.join(harnessDir, 'skills', 'example-skill', 'SKILL.md'), STARTER_SKILL);
   await writeIfAbsent(path.join(harnessDir, 'commands', 'review.md'), STARTER_COMMAND);
 
-  // A tiny eval set so `harness optimize` works out of the box.
-  await writeIfAbsent(
-    path.join(root, 'eval', 'search', 'keeps-build-command', 'task.toml'),
-    TASK('grep -q "npm run build" "$HARNESS_DIR/AGENTS.md"'),
-  );
+  // A tiny eval set so `harness optimize` works out of the box. Each task asserts
+  // content the starter AGENTS.md actually contains, so the baseline passes 100%.
+  if (hasScript('build')) {
+    await writeIfAbsent(
+      path.join(root, 'eval', 'search', 'keeps-build-command', 'task.toml'),
+      TASK('grep -q "npm run build" "$HARNESS_DIR/AGENTS.md"'),
+    );
+  }
   await writeIfAbsent(
     path.join(root, 'eval', 'search', 'keeps-secrets-rule', 'task.toml'),
     TASK('grep -q "Never commit secrets" "$HARNESS_DIR/AGENTS.md"'),
@@ -197,6 +233,11 @@ export async function runInit(root: string, opts: InitOptions = {}): Promise<num
     path.join(root, 'eval', 'test', 'keeps-test-command', 'task.toml'),
     TASK('grep -q "npm test" "$HARNESS_DIR/AGENTS.md"'),
   );
+
+  // Ignore the optimizer's history/ and internal .generated/ by default
+  // (commit_generated=true keeps the per-tool config committed for review).
+  const { spec } = await loadHarness(root);
+  if (spec) await syncGitignore(root, spec, []);
 
   if (!opts.yes) {
     p.note(

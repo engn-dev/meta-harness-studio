@@ -34,10 +34,18 @@ function project(spec: HarnessSpec): ProjectionResult {
   }
 
   const projectServers = projectScoped(spec.mcp);
-  if (spec.mcp.length) {
+  const nonProject = spec.mcp.filter((s) => s.scope !== 'project');
+  if (nonProject.length) {
+    warnings.push(
+      `${nonProject.length} MCP server(s) are scope=user/local — Kilo's .kilocode/mcp.json is project-local; add them via the Kilo global MCP settings: ${nonProject
+        .map((s) => s.name)
+        .join(', ')}.`,
+    );
+  }
+  if (projectServers.length) {
     files.push({
       path: '.kilocode/mcp.json',
-      contents: jsonFile(toRooStyleMcp(projectServers.length ? projectServers : spec.mcp)),
+      contents: jsonFile(toRooStyleMcp(projectServers)),
       capability: 'mcp',
       scope: 'project',
     });
@@ -57,7 +65,6 @@ export const kilo: Adapter = {
     hooks: 'none',
     mcp: 'native',
     permissions: 'shim',
-    modes: 'native',
     outputStyles: 'none',
     skills: 'shim',
     ignore: 'shim',

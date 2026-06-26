@@ -16,11 +16,11 @@ direction for projection, and loops for optimization.
 |-------|-------|----------------|
 | **Config** | `src/config/{schema,load,canonical}.ts` | Parse + validate `.harness/` into one typed `HarnessSpec`. Zod schemas are the interface-validation gate. |
 | **Targets** | `src/targets/*` | One `Adapter` per tool. `project(spec) → FileOutput[]`. Data-driven registry. |
-| **MCP** | `src/mcp/transpile.ts` | Pure serializers: one canonical server → six tool shapes. |
+| **MCP** | `src/mcp/transpile.ts` | Pure serializers: one canonical server → five tool shapes across six tools (Cline + Kilo share the Roo-lineage JSON). |
 | **Enforce** | `src/enforce/hooks.ts` | Compile `enforce.toml` invariants into Claude Code hooks + permission denies. |
-| **Engine** | `src/engine/{project,write,staleness}.ts` | Run adapters, dedupe, reconcile conflicts, write/diff to disk, detect stale refs. |
+| **Engine** | `src/engine/{project,write,staleness,manifest,gitignore}.ts` | Run adapters, dedupe, reconcile conflicts, write/diff to disk, prune orphaned outputs, detect stale refs. |
 | **Optimize** | `src/optimize/*` | Experience store, evaluator, proposer, Pareto frontier, leakage audit. |
-| **Commands** | `src/commands/*` | `init`, `apply`, `verify`, `optimize`, `doctor`. |
+| **Commands** | `src/commands/*` | `init`, `apply`, `verify`, `optimize`, `list-targets`, `doctor`. |
 
 ## The canonical model
 

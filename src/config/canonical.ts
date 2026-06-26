@@ -27,7 +27,6 @@ export interface Manifest {
     testSet: string;
     objectives: string[];
     maxIterations: number;
-    candidatesPerIteration: number;
   };
 }
 

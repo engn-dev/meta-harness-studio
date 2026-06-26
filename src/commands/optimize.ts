@@ -10,7 +10,7 @@
 import path from 'node:path';
 import { requireSpec } from './common.js';
 import { loadFromHarnessDir } from '../config/load.js';
-import { rmrf, readTextOr } from '../util/fs.js';
+import { rmrf, readTextOr, listSubdirs } from '../util/fs.js';
 import { hashDir } from '../util/hash.js';
 import { log, pc } from '../util/log.js';
 import {
@@ -68,6 +68,10 @@ export async function runOptimize(root: string, opts: OptimizeOptions = {}): Pro
   const o = spec.manifest.optimizer;
   const proposer = opts.proposer ?? o.proposer;
   const iterations = opts.iterations ?? o.maxIterations;
+  if (!Number.isInteger(iterations) || iterations < 1) {
+    log.error(`--iterations must be a positive integer (got ${String(opts.iterations)}).`);
+    return 1;
+  }
 
   // Only objectives we actually measure can shape the frontier. A configured key
   // we don't emit would silently never discriminate, so warn and drop it rather
@@ -108,7 +112,17 @@ export async function runOptimize(root: string, opts: OptimizeOptions = {}): Pro
   };
 
   // --- baseline ---
+  // With --keep-history, continue numbering after the highest existing variant so
+  // a re-run appends to the experience store instead of clobbering v00/v01.
   let index = 0;
+  if (opts.keepHistory) {
+    const existing = await listSubdirs(historyDir(spec.harnessDir));
+    const nums = existing
+      .map((d) => /^v(\d+)$/.exec(d))
+      .filter((m): m is RegExpExecArray => m !== null)
+      .map((m) => parseInt(m[1] as string, 10));
+    index = nums.length ? Math.max(...nums) + 1 : 0;
+  }
   const base = await createVariantDir(spec.harnessDir, vid(index));
   await snapshotHarness(spec.harnessDir, base.harnessDir);
   const baseHash = await hashDir(base.harnessDir);
@@ -205,20 +219,35 @@ export async function runOptimize(root: string, opts: OptimizeOptions = {}): Pro
   }
 
   // --- held-out test split (proposer never saw these) ---
+  // Report the best variant's held-out pass-rate AND compare it to the baseline's:
+  // a drop means the proposer improved the search metrics by overfitting, so we
+  // warn rather than silently recommend a variant that generalizes worse.
+  let heldOutRegressed = false;
   const testDir = path.join(spec.root, o.testSet);
   if (o.testSet !== o.searchSet) {
     const testTasks = await loadTasks(testDir);
-    if (testTasks.length && best) {
+    if (testTasks.length && best && best.id !== base.id) {
       const bestHarness = path.join(historyDir(spec.harnessDir), best.id, 'harness');
-      const testOutcome = await evaluate(bestHarness, testTasks);
+      const bestTest = await evaluate(bestHarness, testTasks);
+      const baseTest = await evaluate(base.harnessDir, testTasks);
       log.dim(
-        `  held-out test set: pass ${(testOutcome.scores.pass_rate * 100).toFixed(0)}% on ${testTasks.length} task(s) the proposer never saw.`,
+        `  held-out test set: pass ${(bestTest.scores.pass_rate * 100).toFixed(0)}% (baseline ${(baseTest.scores.pass_rate * 100).toFixed(0)}%) on ${testTasks.length} task(s) the proposer never saw.`,
       );
+      if (bestTest.scores.pass_rate < baseTest.scores.pass_rate) {
+        heldOutRegressed = true;
+        log.warn(
+          `  ${best.id} regressed on the held-out set (${(bestTest.scores.pass_rate * 100).toFixed(0)}% < ${(baseTest.scores.pass_rate * 100).toFixed(0)}%) — likely overfit to the search set; not recommended for adoption.`,
+        );
+      }
     }
   }
 
   // --- adopt ---
-  if (opts.apply && best && best.id !== base.id) {
+  if (opts.apply && best && best.id !== base.id && heldOutRegressed) {
+    log.warn(
+      `Skipped --apply: ${best.id} regressed on the held-out set. Adopt manually if intended: copy from .harness/history/${best.id}/harness/.`,
+    );
+  } else if (opts.apply && best && best.id !== base.id) {
     const bestHarness = path.join(historyDir(spec.harnessDir), best.id, 'harness');
     await snapshotHarness(bestHarness, spec.harnessDir);
     log.success(`Adopted ${best.id} into .harness/. Run \`harness apply\` to project it to your tools.`);

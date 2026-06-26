@@ -107,9 +107,16 @@ describe('MCP transpilers — each tool genuinely differs', () => {
     expect(off).toContain('"enabled": false');
   });
 
-  it('disabled servers are dropped from Claude output but reflected in Roo `disabled`', () => {
+  it('disabled servers are dropped from formats with no off-switch (Claude, Codex), flagged where one exists', () => {
     const off: McpServer = { ...stdio, enabled: false };
-    expect(toClaudeMcp([off]).mcpServers).toEqual({ github: expect.anything() });
+    // Claude .mcp.json / Codex config.toml have no `disabled` field — a disabled
+    // server must be omitted, not emitted as active.
+    expect(toClaudeMcp([off]).mcpServers).toEqual({});
+    expect(toCodexMcpToml([off])).toBe('');
+    // Roo lineage and OpenCode carry the off-state natively, so they keep the entry.
     expect((toRooStyleMcp([off]).mcpServers.github as { disabled: boolean }).disabled).toBe(true);
+    expect((toOpenCodeMcp([off]).github as { enabled: boolean }).enabled).toBe(false);
+    // A disabled server alongside an active one drops only the disabled one.
+    expect(Object.keys(toClaudeMcp([off, http]).mcpServers)).toEqual(['sentry']);
   });
 });

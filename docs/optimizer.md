@@ -98,7 +98,10 @@ token/cost*.
 ## Adopting a result
 
 ```bash
-harness optimize --apply     # copy the best variant back into .harness/, then run `harness apply`
+harness optimize --apply     # adopt the best variant into .harness/ (then run `harness apply` yourself)
 ```
 
-Or copy by hand from `.harness/history/<id>/harness/`.
+`--apply` copies the best variant back into `.harness/`; it does **not** re-project
+to your tools — run `harness apply` after. A variant that regressed on the held-out
+test set is *not* auto-adopted (you'd copy it by hand if you really meant to). Or
+copy any variant from `.harness/history/<id>/harness/`.

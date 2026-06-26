@@ -22,6 +22,7 @@ export const ManifestSchema = z
         commit_generated: z.boolean().default(true),
         overrides: z.record(TargetId, ProjectionMode).default({}),
       })
+      .strict()
       .default({}),
     optimizer: z
       .object({
@@ -32,8 +33,8 @@ export const ManifestSchema = z
           .array(z.string())
           .default(['pass_rate', 'context_tokens', 'wall_clock_s', 'usd']),
         max_iterations: z.number().int().positive().default(3),
-        candidates_per_iteration: z.number().int().positive().default(1),
       })
+      .strict()
       .default({}),
   })
   .strict();
@@ -52,6 +53,7 @@ const McpServerSchema = z
     scope: z.enum(['project', 'user', 'local']).default('project'),
     enabled: z.boolean().default(true),
   })
+  .strict()
   .superRefine((v, ctx) => {
     if (v.transport === 'stdio' && !v.command) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'stdio MCP server requires `command`' });
@@ -65,20 +67,23 @@ export const McpFileSchema = z.object({
   servers: z.record(McpServerSchema).default({}),
 });
 
-const PermRuleSchema = z.object({ tool: z.string().min(1), pattern: z.string().optional() });
+const PermRuleSchema = z.object({ tool: z.string().min(1), pattern: z.string().optional() }).strict();
 
-export const PermissionsSchema = z.object({
-  default_mode: z.enum(['allow', 'ask', 'deny']).default('ask'),
-  allow: z.array(PermRuleSchema).default([]),
-  deny: z.array(PermRuleSchema).default([]),
-  ask: z.array(PermRuleSchema).default([]),
-  sandbox: z
-    .object({
-      mode: z.enum(['read-only', 'workspace-write', 'danger-full-access']).default('workspace-write'),
-      network: z.boolean().default(false),
-    })
-    .default({}),
-});
+export const PermissionsSchema = z
+  .object({
+    default_mode: z.enum(['allow', 'ask', 'deny']).default('ask'),
+    allow: z.array(PermRuleSchema).default([]),
+    deny: z.array(PermRuleSchema).default([]),
+    ask: z.array(PermRuleSchema).default([]),
+    sandbox: z
+      .object({
+        mode: z.enum(['read-only', 'workspace-write', 'danger-full-access']).default('workspace-write'),
+        network: z.boolean().default(false),
+      })
+      .strict()
+      .default({}),
+  })
+  .strict();
 
 const EnforceRuleSchema = z
   .object({
@@ -93,6 +98,7 @@ const EnforceRuleSchema = z
     when_files: z.array(z.string()).default([]),
     message: z.string().default(''),
   })
+  .strict()
   .superRefine((v, ctx) => {
     if (v.action === 'run' && !v.run) {
       ctx.addIssue({

@@ -9,7 +9,6 @@
  */
 import path from 'node:path';
 import { fs, ensureDir, copyDir, listSubdirs, pathExists, readText, writeText } from '../util/fs.js';
-import { hashDir } from '../util/hash.js';
 
 export interface VariantScores {
   variantId: string;
@@ -38,12 +37,6 @@ const IGNORE_IN_SNAPSHOT = ['history', '.generated'];
 
 export function historyDir(harnessDir: string): string {
   return path.join(harnessDir, 'history');
-}
-
-/** Deterministic id: iteration index + content hash (no clocks/randomness). */
-export async function variantId(index: number, harnessDir: string): Promise<string> {
-  const h = await hashDir(harnessDir, IGNORE_IN_SNAPSHOT);
-  return `v${String(index).padStart(2, '0')}-${h.slice(0, 8)}`;
 }
 
 /** Copy a `.harness/` tree into a variant dir, excluding history/.generated. */

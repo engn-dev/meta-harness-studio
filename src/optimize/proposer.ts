@@ -65,30 +65,46 @@ Diagnose failures from the RAW traces, then edit THIS candidate's .harness/ file
 (higher pass_rate, lower context_tokens / wall_clock / cost). Do NOT touch the eval set or secrets.
 Write a short root-cause diagnosis to diagnosis.md, then make the edit that tests it.`;
 
+/** A hung proposer would block the whole loop forever, so cap each call. */
+const PROPOSER_TIMEOUT_MS = 10 * 60 * 1000;
+
 async function shellProposer(
   proposer: string,
   candidateHarnessDir: string,
 ): Promise<ProposerResult> {
   const before = await hashDir(candidateHarnessDir);
-  const promptPath = path.join(candidateHarnessDir, '..', 'PROPOSER_PROMPT.md');
-  await writeText(promptPath, STEERING_PROMPT);
 
-  const result = await new Promise<{ code: number; output: string }>((resolve) => {
+  const result = await new Promise<{ code: number; output: string; timedOut: boolean }>((resolve) => {
     const child = spawn('sh', ['-c', proposer], { cwd: candidateHarnessDir });
     let output = '';
+    let timedOut = false;
+    const timer = setTimeout(() => {
+      timedOut = true;
+      child.kill('SIGTERM');
+      // Escalate if it ignores SIGTERM.
+      setTimeout(() => child.kill('SIGKILL'), 5000);
+    }, PROPOSER_TIMEOUT_MS);
     child.stdout?.on('data', (d) => (output += d.toString()));
     child.stderr?.on('data', (d) => (output += d.toString()));
+    // The prompt is delivered once, over stdin (how `claude -p` reads it).
     child.stdin?.write(STEERING_PROMPT);
     child.stdin?.end();
-    child.on('error', (e) => resolve({ code: 127, output: `[proposer spawn error] ${e.message}` }));
-    child.on('close', (code) => resolve({ code: code ?? 0, output }));
+    child.on('error', (e) => {
+      clearTimeout(timer);
+      resolve({ code: 127, output: `[proposer spawn error] ${e.message}`, timedOut: false });
+    });
+    child.on('close', (code) => {
+      clearTimeout(timer);
+      resolve({ code: code ?? 0, output, timedOut });
+    });
   });
 
   const after = await hashDir(candidateHarnessDir);
   const changed = before !== after;
+  const timeoutNote = result.timedOut ? ` (TIMED OUT after ${PROPOSER_TIMEOUT_MS / 1000}s — killed)` : '';
   return {
     changed,
-    diagnosis: `Real proposer \`${proposer}\` exited ${result.code}; harness ${changed ? 'modified' : 'unchanged'}.\n\n${result.output.slice(0, 4000)}`,
+    diagnosis: `Real proposer \`${proposer}\` exited ${result.code}${timeoutNote}; harness ${changed ? 'modified' : 'unchanged'}.\n\n${result.output.slice(0, 4000)}`,
   };
 }
 

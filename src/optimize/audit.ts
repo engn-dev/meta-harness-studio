@@ -26,8 +26,11 @@ export async function auditLeakage(
     text += '\n' + (await readText(path.join(candidateHarnessDir, rel)));
   }
   for (const name of taskNames) {
-    // A bare task identifier appearing verbatim in instructions suggests the
-    // harness is being tuned to specific eval tasks rather than generalizing.
+    // Only treat slug-like task ids (containing `-` or `_`, e.g. `keeps-build-command`)
+    // as leak signals. A bare common word like `test` or `build` legitimately appears
+    // in normal instructions, and flagging it would silently kill real improvements —
+    // the heuristic must not be more aggressive than the signal it relies on.
+    if (!/[-_]/.test(name)) continue;
     const re = new RegExp(`\\b${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`);
     if (re.test(text)) {
       findings.push({

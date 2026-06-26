@@ -110,7 +110,6 @@ export async function loadFromHarnessDir(harnessDir: string, root: string): Prom
           testSet: r.data.optimizer.test_set,
           objectives: r.data.optimizer.objectives,
           maxIterations: r.data.optimizer.max_iterations,
-          candidatesPerIteration: r.data.optimizer.candidates_per_iteration,
         },
       };
     }
@@ -125,8 +124,18 @@ export async function loadFromHarnessDir(harnessDir: string, root: string): Prom
   const nested = await glob('instructions/**/AGENTS.md', { cwd: harnessDir });
   for (const relFromHarness of nested.sort()) {
     const sub = path.dirname(relFromHarness).replace(/^instructions\/?/, '');
+    if (!sub) {
+      // A file at instructions/AGENTS.md has no package subdir, so it would
+      // re-root to plain AGENTS.md and silently shadow the canonical one.
+      errors.push({
+        file: `.harness/${relFromHarness}`,
+        message:
+          'nested instructions must live in a package subdirectory (e.g. instructions/packages/api/AGENTS.md); a bare instructions/AGENTS.md is ambiguous with the root.',
+      });
+      continue;
+    }
     instructions.push({
-      path: sub ? `${sub}/AGENTS.md` : 'AGENTS.md',
+      path: `${sub}/AGENTS.md`,
       scope: 'project',
       body: await readText(path.join(harnessDir, relFromHarness)),
     });
@@ -293,6 +302,20 @@ export async function loadFromHarnessDir(harnessDir: string, root: string): Prom
       frontmatter: data as Record<string, unknown>,
     });
   }
+
+  // Duplicate names collide on the same projected path (e.g. two skills named
+  // `review` both write .claude/skills/review/SKILL.md) — catch it here with a
+  // clear message instead of letting it surface as a confusing self-conflict.
+  const dupes = (kind: string, names: string[]): void => {
+    const seen = new Set<string>();
+    for (const n of names) {
+      if (seen.has(n)) errors.push({ file: `.harness/${kind}`, message: `duplicate ${kind} name '${n}'` });
+      seen.add(n);
+    }
+  };
+  dupes('skills', skills.map((s) => s.name));
+  dupes('agents', agents.map((a) => a.name));
+  dupes('commands', commands.map((c) => c.name));
 
   if (!manifest) return { errors };
 

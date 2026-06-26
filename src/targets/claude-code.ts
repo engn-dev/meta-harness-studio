@@ -29,16 +29,20 @@ function project(spec: HarnessSpec): ProjectionResult {
   const files: FileOutput[] = [];
   const warnings: string[] = [];
 
-  // Instructions: canonical AGENTS.md + a CLAUDE.md import shim.
+  // Instructions: canonical AGENTS.md + a CLAUDE.md import shim. Only emit the
+  // shim when there's a root AGENTS.md to import — otherwise CLAUDE.md would carry
+  // a dangling `@AGENTS.md` pointing at a file that doesn't exist.
   const root = rootAgentsOutput(spec, 'claude-code');
-  if (root) files.push(root);
+  if (root) {
+    files.push(root);
+    files.push({
+      path: 'CLAUDE.md',
+      contents: CLAUDE_MD,
+      capability: 'instructions',
+      scope: 'project',
+    });
+  }
   files.push(...nestedAgentsOutputs(spec));
-  files.push({
-    path: 'CLAUDE.md',
-    contents: CLAUDE_MD,
-    capability: 'instructions',
-    scope: 'project',
-  });
 
   // Skills, subagents, commands, output styles — all native markdown surfaces.
   files.push(...skillOutputs(spec, '.claude/skills'));
@@ -46,12 +50,14 @@ function project(spec: HarnessSpec): ProjectionResult {
   files.push(...markdownDefOutputs(spec.commands, '.claude/commands', 'commands'));
   files.push(...markdownDefOutputs(spec.outputStyles, '.claude/output-styles', 'outputStyles'));
 
-  // MCP — project-scoped servers go in .mcp.json.
+  // MCP — project-scoped servers go in .mcp.json (disabled servers are omitted
+  // by the serializer, so an all-disabled set writes no file).
   const projectServers = projectScoped(spec.mcp);
-  if (projectServers.length) {
+  const claudeMcp = toClaudeMcp(projectServers);
+  if (Object.keys(claudeMcp.mcpServers).length) {
     files.push({
       path: '.mcp.json',
-      contents: jsonFile(toClaudeMcp(projectServers)),
+      contents: jsonFile(claudeMcp),
       capability: 'mcp',
       scope: 'project',
     });
@@ -109,7 +115,6 @@ export const claudeCode: Adapter = {
     hooks: 'native',
     mcp: 'native',
     permissions: 'native',
-    modes: 'native',
     outputStyles: 'native',
     skills: 'native',
     ignore: 'shim',
