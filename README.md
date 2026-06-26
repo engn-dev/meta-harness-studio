@@ -13,7 +13,7 @@ One canonical `.harness/` becomes correct, native config for **Claude Code, Code
 
 ## Why this exists
 
-Every coding agent reinvents the same config: `CLAUDE.md` here, `AGENTS.md` there, `config.toml`, `.clinerules/`, four different MCP formats, per-tool hooks. Keeping them consistent by hand rots fast — an audit cited in our research found **46% of repos suffer "rule drift"** (instructions pointing at scripts that no longer exist).
+Every coding agent reinvents the same config: `CLAUDE.md` here, `AGENTS.md` there, `config.toml`, `.clinerules/`, four different MCP formats, per-tool hooks. Keeping them consistent by hand rots fast — instructions drift out of sync with the scripts they reference (**"rule drift"**: a `CLAUDE.md` that still says `npm run check` after the script was renamed), and no tool checks.
 
 Tools like **Ruler** and **rulesync** solve half of this: they're one-way compilers that fan a single source of truth out to N tools. But, as the most-upvoted critique of that whole category puts it, *"compilation enforces consistency, not behavior."* Synced rules don't make an agent comply, and **execution outcomes never flow back** to improve the rules.
 
@@ -33,6 +33,7 @@ node dist/cli.js --help          # or `npm link` to get a global `harness`
 
 # in any project
 harness init          # scaffold .harness/ (imports an existing AGENTS.md/CLAUDE.md if present)
+harness author        # OR: scan the repo and auto-author a working .harness/ (deterministic)
 harness apply         # generate native config for every enabled tool
 harness verify        # audit drift + stale references + enforcement coverage
 harness optimize      # close the loop (simulated proposer — no tokens, no model)
@@ -48,7 +49,7 @@ Optimizing "acme-api" — proposer=simulated, 3 search task(s), ≤3 iteration(s
 
 Result
 ✔ Best variant v01: context_tokens 297 → 175 (−122 tok), pass_rate 100% → 100% (+0 pts).
-  held-out test set: pass 100% on 1 task(s) the proposer never saw.
+  held-out test set: pass 100% (baseline 100%) on 1 task(s) the proposer never saw.
 ```
 
 That's the paper's headline outcome — **equal pass-rate at fewer tokens** — reproduced offline.
@@ -62,7 +63,7 @@ See [`examples/demo-project/`](examples/demo-project/) for a complete worked exa
 ```
 .harness/
   harness.toml            # which targets, projection policy, optimizer config
-  AGENTS.md               # canonical instructions — the portable backbone (6/7 tools read it natively)
+  AGENTS.md               # canonical instructions — the portable backbone (5 of 6 tools read it natively)
   instructions/**/AGENTS.md  # optional nested per-package (monorepo nearest-wins)
   mcp.toml                # canonical MCP servers (one schema → 6 serializers)
   permissions.toml        # allow / deny / ask + sandbox intent (degrades per tool)
@@ -74,7 +75,7 @@ See [`examples/demo-project/`](examples/demo-project/) for a complete worked exa
   history/                # the optimizer's experience store (raw traces) — gitignored by default
 ```
 
-Instructions live in **AGENTS.md** because it's the de-facto standard 6 of the 7 targets read natively. Machine config is **TOML** (Codex's native format, and it transpiles cleanly down to JSON). We don't invent an instruction format — only four small TOML files are net-new.
+Instructions live in **AGENTS.md** because it's the de-facto standard 5 of the 6 targets read natively (Claude Code imports it via a generated `CLAUDE.md` → `@AGENTS.md` shim). Machine config is **TOML** (Codex's native format, and it transpiles cleanly down to JSON). We don't invent an instruction format — only four small TOML files are net-new.
 
 ---
 
@@ -150,6 +151,7 @@ expect_exit = 0
 | Command | What it does |
 |---------|--------------|
 | `harness init [--yes]` | Scaffold `.harness/`; import an existing `AGENTS.md`/`CLAUDE.md`/`.cursorrules` |
+| `harness author [--force]` | Scan the repo and auto-author a working `.harness/` (deterministic; `init --from-repo` is an alias) |
 | `harness apply [--dry-run]` | Validate → project the canonical spec onto every enabled tool |
 | `harness verify` | Audit drift, stale script references, and enforcement coverage (CI-friendly exit code) |
 | `harness optimize [--proposer <cmd>] [--iterations <n>] [--apply]` | Close the loop |

@@ -1,10 +1,10 @@
 /**
  * Semantic staleness detection.
  *
- * Research found 46% of repos suffer "rule drift" — instructions pointing at
- * scripts that were renamed or removed. Byte-level sync can't catch this. We
- * scan instructions, commands and enforce `run` commands for referenced npm
- * scripts and verify they still exist in package.json.
+ * "Rule drift" — instructions pointing at scripts that were renamed or removed —
+ * is a common failure mode that byte-level sync can't catch. We scan instructions,
+ * commands and enforce `run` commands for referenced npm scripts and verify they
+ * still exist in package.json.
  */
 import path from 'node:path';
 import type { HarnessSpec } from '../config/canonical.js';
