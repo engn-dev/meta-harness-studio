@@ -1,0 +1,12 @@
+name = "acme-api"
+targets = ["claude-code", "codex", "opencode", "cline", "kilo", "pi"]
+
+[projection]
+mode = "generate"        # "generate" (copy) | "symlink" (byte-identical only)
+commit_generated = true
+
+[optimizer]
+proposer = "simulated"   # "simulated" (token-free) | a shell command e.g. "claude -p"
+search_set = "eval/search"
+test_set = "eval/test"
+max_iterations = 3

@@ -1,0 +1,2 @@
+cmd = "grep -q \"Never commit secrets\" \"$HARNESS_DIR/AGENTS.md\""
+expect_exit = 0

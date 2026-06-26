@@ -1,0 +1,2 @@
+cmd = "grep -q \"src/services/\" \"$HARNESS_DIR/AGENTS.md\""
+expect_exit = 0

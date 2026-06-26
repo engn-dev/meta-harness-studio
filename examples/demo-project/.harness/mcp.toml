@@ -1,0 +1,15 @@
+# Canonical MCP servers — one definition, transpiled to each tool's native shape
+# by `harness apply`. Secrets are ${ENV} references, never literals.
+
+[servers.github]
+transport = "stdio"
+command = "npx"
+args = ["-y", "@modelcontextprotocol/server-github"]
+env = { GITHUB_TOKEN = "${GITHUB_TOKEN}" }
+scope = "project"
+
+[servers.sentry]
+transport = "http"
+url = "https://mcp.sentry.dev/sse"
+bearer_token_env_var = "SENTRY_TOKEN"
+scope = "project"

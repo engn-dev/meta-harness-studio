@@ -1,0 +1,17 @@
+# This example commits only the canonical .harness/ source. The per-tool config
+# below is produced by `harness apply` — generate it yourself (it also avoids
+# baking machine-specific absolute paths into the repo).
+/AGENTS.md
+/CLAUDE.md
+/.mcp.json
+/opencode.json
+/.clineignore
+/.claude/
+/.codex/
+/.clinerules/
+/.kilo/
+/.kilocode/
+/.opencode/
+/.pi/
+/.agents/
+/.harness/.generated/

@@ -1,0 +1,13 @@
+default_mode = "ask"
+
+[[allow]]
+tool = "Bash"
+pattern = "npm run *"
+
+[[deny]]
+tool = "Read"
+pattern = "./.env*"
+
+[sandbox]
+mode = "workspace-write"
+network = false

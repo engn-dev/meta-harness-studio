@@ -1,0 +1,20 @@
+# "Must-happen" invariants. Compiled to deterministic Claude Code hooks /
+# permission-denies; advisory-only where a target has no hook layer.
+
+[[rule]]
+id = "block-env-read"
+description = "Never read secret env files"
+event = "pre-tool"
+match = "Read"
+action = "deny"
+when_files = ["./.env*"]
+message = "Reading .env* is blocked by harness policy."
+
+[[rule]]
+id = "lint-after-edit"
+description = "Lint TypeScript after the agent edits a file"
+event = "post-tool"
+match = "Edit|Write"
+action = "run"
+run = "npm run lint --silent"
+when_files = ["**/*.ts"]

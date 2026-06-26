@@ -1,0 +1,12 @@
+node_modules/
+dist/
+*.log
+.DS_Store
+
+# Optimizer run artifacts are local by default (raw traces can be large / sensitive).
+# Commit them deliberately if you want a shared experience store.
+.harness/history/
+
+# Generated tool config is committed by default for review; flip to ignore here
+# if your harness.toml sets [projection] commit_generated = false.
+# .harness/.generated/
