@@ -2,6 +2,7 @@
 import path from 'node:path';
 import { Command } from 'commander';
 import { runInit } from './commands/init.js';
+import { runAuthor } from './commands/author.js';
 import { runApply } from './commands/apply.js';
 import { runVerify } from './commands/verify.js';
 import { runOptimize } from './commands/optimize.js';
@@ -39,7 +40,16 @@ program
   .command('init')
   .description('scaffold .harness/ (imports an existing AGENTS.md/CLAUDE.md if present)')
   .option('-y, --yes', 'use defaults, no prompts', false)
-  .action((opts: { yes: boolean }) => run(() => runInit(ctx(), { yes: opts.yes })));
+  .option('--from-repo', 'author content from a repo scan instead of a fixed skeleton', false)
+  .action((opts: { yes: boolean; fromRepo: boolean }) =>
+    run(() => (opts.fromRepo ? runAuthor(ctx()) : runInit(ctx(), { yes: opts.yes }))),
+  );
+
+program
+  .command('author')
+  .description('scan the repo and auto-author a working .harness/ (deterministic, no tokens)')
+  .option('-f, --force', 'overwrite existing .harness/ files', false)
+  .action((opts: { force: boolean }) => run(() => runAuthor(ctx(), { force: opts.force })));
 
 program
   .command('apply')
