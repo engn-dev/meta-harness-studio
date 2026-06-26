@@ -21,11 +21,14 @@ import { syncGitignore } from '../engine/gitignore.js';
 import { scanRepo } from '../author/scan.js';
 import { renderHarnessFiles } from '../author/render.js';
 import { generateEvalTasks } from '../author/evalgen.js';
+import { enrichWithLlm } from '../author/llm.js';
 import { log, pc } from '../util/log.js';
 
 export interface AuthorOptions {
   /** Overwrite existing `.harness/` files instead of preserving them. */
   force?: boolean;
+  /** Opt-in LLM authoring pass: a shell command (e.g. `claude -p`). Absent = deterministic only. */
+  proposer?: string;
 }
 
 export async function runAuthor(root: string, opts: AuthorOptions = {}): Promise<number> {
@@ -78,7 +81,17 @@ export async function runAuthor(root: string, opts: AuthorOptions = {}): Promise
     return 1;
   }
 
-  // 6. Mine the guard eval set (validate-then-keep against the authored harness).
+  // 5b. Opt-in LLM authoring pass (Phase 1). It runs against the repo + the valid
+  // draft above, then validate-or-reverts through the same gates — so a bad run can
+  // never leave the harness worse than the deterministic draft.
+  if (opts.proposer) {
+    log.dim(`LLM authoring pass: \`${opts.proposer}\` …`);
+    const enrich = await enrichWithLlm(opts.proposer, root, harnessDir);
+    if (enrich.reverted) log.warn(enrich.note);
+    else log.dim(enrich.note);
+  }
+
+  // 6. Mine the guard eval set (validate-then-keep against the final AGENTS.md).
   const evalReport = await generateEvalTasks(digest, harnessDir, root);
 
   // 7. Keep history/ and .generated/ ignored, mirroring init.

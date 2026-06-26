@@ -49,7 +49,13 @@ program
   .command('author')
   .description('scan the repo and auto-author a working .harness/ (deterministic, no tokens)')
   .option('-f, --force', 'overwrite existing .harness/ files', false)
-  .action((opts: { force: boolean }) => run(() => runAuthor(ctx(), { force: opts.force })));
+  .option(
+    '-p, --proposer <cmd>',
+    'opt-in LLM authoring pass: a shell command (e.g. "claude -p"); validate-or-revert',
+  )
+  .action((opts: { force: boolean; proposer?: string }) =>
+    run(() => runAuthor(ctx(), { force: opts.force, proposer: opts.proposer })),
+  );
 
 program
   .command('apply')
