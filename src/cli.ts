@@ -41,9 +41,18 @@ program
   .description('scaffold .harness/ (imports an existing AGENTS.md/CLAUDE.md if present)')
   .option('-y, --yes', 'use defaults, no prompts', false)
   .option('--from-repo', 'author content from a repo scan instead of a fixed skeleton', false)
-  .action((opts: { yes: boolean; fromRepo: boolean }) =>
-    run(() => (opts.fromRepo ? runAuthor(ctx()) : runInit(ctx(), { yes: opts.yes }))),
-  );
+  .option('-p, --proposer <cmd>', 'with --from-repo: opt-in LLM authoring pass (e.g. "claude -p")')
+  .option('--optimize', 'with --from-repo: chain `harness optimize` after authoring', false)
+  .action((opts: { yes: boolean; fromRepo: boolean; proposer?: string; optimize: boolean }) => {
+    if ((opts.proposer || opts.optimize) && !opts.fromRepo) {
+      log.warn('--proposer/--optimize only apply with --from-repo; ignoring.');
+    }
+    return run(() =>
+      opts.fromRepo
+        ? runAuthor(ctx(), { proposer: opts.proposer, optimize: opts.optimize })
+        : runInit(ctx(), { yes: opts.yes }),
+    );
+  });
 
 program
   .command('author')

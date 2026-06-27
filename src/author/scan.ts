@@ -306,6 +306,25 @@ function scriptKind(name: string): string | undefined {
 
 const COMMAND_ORDER = ['build', 'test', 'lint', 'typecheck', 'dev', 'start'];
 
+// npm lifecycle scripts run automatically around install/publish/version — they are
+// not commands an agent invokes, so they are noise in an authored Commands list.
+const LIFECYCLE_SCRIPTS = new Set([
+  'prepare',
+  'prepublish',
+  'prepublishonly',
+  'prepack',
+  'postpack',
+  'preinstall',
+  'install',
+  'postinstall',
+  'preuninstall',
+  'uninstall',
+  'postuninstall',
+  'preversion',
+  'version',
+  'postversion',
+]);
+
 function sortCommands(cmds: DetectedCommand[]): DetectedCommand[] {
   const rank = (k: string): number => {
     const i = COMMAND_ORDER.indexOf(k);
@@ -340,6 +359,7 @@ function buildCommands(
       const kind = scriptKind(scriptName);
       if (kind === 'test') continue; // already handled via `<pm> test`
       if (!STALE_SAFE.test(scriptName)) continue;
+      if (!kind && LIFECYCLE_SCRIPTS.has(scriptName.toLowerCase())) continue; // npm hook, not a command
       const role = kind ?? scriptName;
       // Avoid duplicate canonical roles (e.g. both `build` and `build:prod`).
       if (kind && seenKind.has(kind)) continue;

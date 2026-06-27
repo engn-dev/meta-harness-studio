@@ -127,6 +127,20 @@ describe('hardening (adversarial inputs)', () => {
     expect(await detectStaleScripts(spec!)).toHaveLength(0);
   });
 
+  it('omits npm lifecycle scripts (prepublishOnly, prepare) from Commands', async () => {
+    const pkg = {
+      name: 'lib',
+      scripts: { build: 'tsc', prepublishOnly: 'npm run build', prepare: 'husky', dev: 'tsx' },
+    };
+    await fs.writeFile(path.join(dir, 'package.json'), JSON.stringify(pkg));
+    await runAuthor(dir);
+    const agents = await fs.readFile(path.join(dir, '.harness', 'AGENTS.md'), 'utf8');
+    expect(agents).toContain('npm run build');
+    expect(agents).toContain('npm run dev'); // a real dev command stays
+    expect(agents).not.toContain('prepublishOnly');
+    expect(agents).not.toContain('npm run prepare');
+  });
+
   it('never executes a backtick needle from a malicious filename (no shell injection)', async () => {
     const harnessDir = path.join(dir, '.harness');
     await fs.mkdir(harnessDir, { recursive: true });
